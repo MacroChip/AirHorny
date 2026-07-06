@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AirHorny — the air horn keyboard</title>
+<style>
+  :root {
+    --bg: #12101c;
+    --panel: #1d1a2e;
+    --panel-edge: #2e2947;
+    --text: #f2eefc;
+    --muted: #9c93bd;
+    --accent: #ff5c35;
+    --accent-hot: #ffd23f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #241f3d 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 2rem 1.5rem 4rem;
+  }
+  header { text-align: center; margin-bottom: 2rem; }
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    letter-spacing: -0.02em;
+    background: linear-gradient(100deg, var(--accent-hot), var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  header p { color: var(--muted); margin-top: 0.5rem; font-size: 1rem; }
+  header p kbd {
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 4px;
+    padding: 0.1em 0.4em;
+    font-size: 0.85em;
+  }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 1rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .pad {
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 16px;
+    padding: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    position: relative;
+    transition: transform 0.08s ease, box-shadow 0.15s ease;
+  }
+  .pad.blast {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 2px var(--accent), 0 0 28px rgba(255, 92, 53, 0.55);
+  }
+  .horn-btn {
+    font-size: 3rem;
+    line-height: 1;
+    padding: 1.1rem 0 0.9rem;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    background: linear-gradient(160deg, #35304f, #262138);
+    transition: filter 0.1s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  .horn-btn:hover { filter: brightness(1.2); }
+  .horn-btn:active { filter: brightness(1.5); }
+  .pad-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-variant-numeric: tabular-nums;
+  }
+  .note-name { font-weight: 700; font-size: 1.05rem; color: var(--accent-hot); }
+  .key-hint { color: var(--muted); font-size: 0.8rem; }
+  .key-hint b {
+    color: var(--text);
+    background: #2a2542;
+    border: 1px solid var(--panel-edge);
+    border-radius: 4px;
+    padding: 0 0.35em;
+    font-weight: 600;
+  }
+  .pitch {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #322c50;
+    outline: none;
+    cursor: pointer;
+  }
+  .pitch::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--text);
+    cursor: grab;
+  }
+  .pitch::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--text);
+    cursor: grab;
+  }
+  .remove-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--panel-edge);
+    background: #38304f;
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.1s ease, color 0.1s ease;
+  }
+  .remove-btn:hover { background: var(--accent); color: #fff; }
+  .add-pad {
+    border: 2px dashed var(--panel-edge);
+    border-radius: 16px;
+    background: none;
+    color: var(--muted);
+    font-size: 1rem;
+    min-height: 170px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .add-pad:hover { border-color: var(--accent); color: var(--accent); }
+  .add-pad .plus { display: block; font-size: 2.2rem; margin-bottom: 0.3rem; }
+  footer {
+    text-align: center;
+    margin-top: 2.5rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  footer button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    text-decoration: underline;
+    cursor: pointer;
+    font: inherit;
+  }
+  footer button:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📢 AirHorny</h1>
+  <p>Your keyboard, but every key is an air horn. Tap a pad or press its <kbd>key</kbd>. Drag the slider to tune each horn, add pads to build a melody.</p>
+</header>
+
+<main class="board" id="board"></main>
+
+<footer>
+  <p>Horns are synthesized live with the Web Audio API — no samples were harmed.
+  <button id="reset" type="button">Reset board</button></p>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- state ----------
+
+  const STORAGE_KEY = "airhorny-pads-v1";
+  const KEY_ORDER = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM".split("");
+  const NOTE_NAMES = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
+  const MIN_SEMI = -24, MAX_SEMI = 24;
+
+  // Hot cross buns, the natural first song on any new instrument.
+  const DEFAULT_PADS = [4, 2, 0, 5, 7];
+
+  let pads = loadPads();
+
+  function loadPads() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (Array.isArray(raw) && raw.length && raw.every(n => Number.isFinite(n))) {
+        return raw.map(n => clampSemi(n));
+      }
+    } catch (e) { /* corrupted storage falls through to defaults */ }
+    return DEFAULT_PADS.slice();
+  }
+
+  function savePads() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(pads)); } catch (e) { /* private mode etc. */ }
+  }
+
+  function clampSemi(n) {
+    return Math.max(MIN_SEMI, Math.min(MAX_SEMI, Math.round(n)));
+  }
+
+  // Semitone offset from A4 (440 Hz) -> note name with octave.
+  function noteName(semi) {
+    const idx = ((semi % 12) + 12) % 12;
+    const octave = 4 + Math.floor((semi + 9) / 12); // A4 is 9 semitones above C4
+    return NOTE_NAMES[idx] + octave;
+  }
+
+  // ---------- air horn synth ----------
+
+  let audioCtx = null;
+
+  function getCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+
+  // Gentle saturation so the horn honks instead of buzzes.
+  let saturationCurve = null;
+  function getSaturationCurve() {
+    if (!saturationCurve) {
+      const n = 1024;
+      saturationCurve = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const x = (i / (n - 1)) * 2 - 1;
+        saturationCurve[i] = Math.tanh(2.2 * x);
+      }
+    }
+    return saturationCurve;
+  }
+
+  function playHorn(semi) {
+    const ctx = getCtx();
+    const t0 = ctx.currentTime;
+    const base = 440 * Math.pow(2, semi / 12);
+    const dur = 0.65;
+
+    const master = ctx.createGain();
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = getSaturationCurve();
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = Math.min(base * 9, 9000);
+    filter.Q.value = 1.2;
+
+    shaper.connect(filter);
+    filter.connect(master);
+    master.connect(ctx.destination);
+
+    // A real air horn is several slightly out-of-tune horns blasting at once;
+    // the detune spread recreates that beating "BWAAAH" texture.
+    const detunes = [-14, -6, 0, 5, 12];
+    for (const cents of detunes) {
+      const osc = ctx.createOscillator();
+      osc.type = "sawtooth";
+      osc.detune.value = cents;
+      // Pitch scoops up fast at the attack, then sags at the release.
+      osc.frequency.setValueAtTime(base * 0.55, t0);
+      osc.frequency.exponentialRampToValueAtTime(base, t0 + 0.07);
+      osc.frequency.setValueAtTime(base, t0 + dur - 0.09);
+      osc.frequency.exponentialRampToValueAtTime(base * 0.78, t0 + dur);
+      osc.connect(shaper);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.05);
+    }
+
+    const peak = 0.28; // headroom: five saws get loud fast
+    master.gain.setValueAtTime(0.0001, t0);
+    master.gain.exponentialRampToValueAtTime(peak, t0 + 0.025);
+    master.gain.setValueAtTime(peak, t0 + dur - 0.06);
+    master.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+    // Let GC reclaim the graph once the blast is over.
+    setTimeout(() => master.disconnect(), (dur + 0.2) * 1000);
+  }
+
+  // ---------- UI ----------
+
+  const board = document.getElementById("board");
+
+  function render() {
+    board.innerHTML = "";
+    pads.forEach((semi, i) => board.appendChild(buildPad(semi, i)));
+
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "add-pad";
+    add.innerHTML = '<span class="plus">＋</span>Add horn';
+    add.addEventListener("click", () => {
+      pads.push(0);
+      savePads();
+      render();
+    });
+    board.appendChild(add);
+  }
+
+  function buildPad(semi, index) {
+    const pad = document.createElement("div");
+    pad.className = "pad";
+    pad.dataset.index = index;
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "remove-btn";
+    remove.title = "Remove this horn";
+    remove.setAttribute("aria-label", "Remove this horn");
+    remove.textContent = "✕";
+    remove.addEventListener("click", () => {
+      pads.splice(index, 1);
+      savePads();
+      render();
+    });
+
+    const horn = document.createElement("button");
+    horn.type = "button";
+    horn.className = "horn-btn";
+    horn.textContent = "📢";
+    horn.title = "BWAAAH";
+    horn.addEventListener("click", () => blast(index));
+
+    const meta = document.createElement("div");
+    meta.className = "pad-meta";
+    const note = document.createElement("span");
+    note.className = "note-name";
+    note.textContent = noteName(semi);
+    const key = document.createElement("span");
+    key.className = "key-hint";
+    key.innerHTML = index < KEY_ORDER.length ? "key <b>" + KEY_ORDER[index] + "</b>" : "&nbsp;";
+    meta.append(note, key);
+
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.className = "pitch";
+    slider.min = MIN_SEMI;
+    slider.max = MAX_SEMI;
+    slider.step = 1;
+    slider.value = semi;
+    slider.title = "Pitch (semitones from A4)";
+    slider.addEventListener("input", () => {
+      pads[index] = clampSemi(Number(slider.value));
+      note.textContent = noteName(pads[index]);
+      savePads();
+    });
+    // Preview the new pitch when the user lets go of the slider.
+    slider.addEventListener("change", () => blast(index));
+
+    pad.append(remove, horn, meta, slider);
+    return pad;
+  }
+
+  function blast(index) {
+    if (index < 0 || index >= pads.length) return;
+    playHorn(pads[index]);
+    const pad = board.querySelector('.pad[data-index="' + index + '"]');
+    if (pad) {
+      pad.classList.remove("blast");
+      void pad.offsetWidth; // restart the CSS transition on rapid retriggers
+      pad.classList.add("blast");
+      clearTimeout(pad._blastTimer);
+      pad._blastTimer = setTimeout(() => pad.classList.remove("blast"), 180);
+    }
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    const index = KEY_ORDER.indexOf(e.key.toUpperCase());
+    if (index !== -1 && index < pads.length) {
+      e.preventDefault();
+      blast(index);
+    }
+  });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    pads = DEFAULT_PADS.slice();
+    savePads();
+    render();
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
