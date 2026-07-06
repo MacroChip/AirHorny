@@ -33,6 +33,27 @@ python3 -m http.server
 # then visit http://localhost:8000
 ```
 
+## Deploying with Docker
+
+The included Dockerfile serves the site with nginx on port **6969**:
+
+```sh
+docker compose up -d --build
+# or, without compose:
+docker build -t airhorny .
+docker run -d --name airhorny --restart unless-stopped -p 6969:6969 airhorny
+```
+
+Then visit `http://<your-droplet-ip>:6969`.
+
+On a fresh droplet, the short version is: install Docker
+(`curl -fsSL https://get.docker.com | sh`), clone this repo,
+`docker compose up -d --build`, and open port 6969 in the firewall
+(`ufw allow 6969/tcp` if you use ufw; on DigitalOcean also allow it in the
+cloud firewall if the droplet has one attached). Plain HTTP is fine — the
+Web Audio API doesn't require a secure context, so the horns honk over
+http:// without any TLS setup.
+
 ## How the horn works
 
 Each blast is five detuned sawtooth oscillators (the beating between them is
